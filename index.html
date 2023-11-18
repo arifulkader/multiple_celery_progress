@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Call with Parameters</title>
+    <!-- Import jQuery library for AJAX -->
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+</head>
+
+<body>
+
+    <h1>API Call Example</h1>
+
+    <label for="param1">Image :</label>
+    <input type="file" id="param1" placeholder="Enter Image ">
+
+    <label for="param2">Video :</label>
+    <input type="file" id="param2" placeholder="Enter Video ">
+
+    <button onclick="makeAPICall()">Make API Call</button>
+
+    <!-- Display API response -->
+    <div id="apiResponse">0</div>
+
+    <!-- Import custom JavaScript file -->
+    <script src="progress.js"></script>
+
+    <script>
+        localStorage.clear();
+        let serial = 0;
+        progressBarElement = document.getElementById("apiResponse")
+
+
+        function processProgress(progressBarElement, progressBarMessageElement, progress) {
+            var temp = parseFloat(progress.percent / serial).toFixed(2);
+
+            localStorage.setItem(progress.task_id, JSON.stringify(progress.percent));
+
+
+            var localStorageLength = localStorage.length;
+            var sum_of_percentage = 0
+            var sum_of_request = 0
+            for (var i = 0; i < localStorageLength; i++) {
+                // Get the key at index i
+                var key = localStorage.key(i);
+
+                // Get the value associated with the key
+                var value = localStorage.getItem(key);
+                sum_of_percentage += parseInt(value)
+                sum_of_request += 1
+            }
+            var temp = parseFloat(sum_of_percentage / sum_of_request).toFixed(2)
+            $("#apiResponse").html(`${temp}`)
+        }
+
+        function processResult(progressBarElement, progressBarMessageElement, result) {
+            if (localStorage.length > 1) {
+                localStorage.removeItem(result.task_id)
+            }
+        }
+
+        function processError(progressBarElement, progressBarMessageElement, excMessage, data) {
+        }
+
+        function makeAPICall() {
+            // Get parameters from input fields
+            var formData = new FormData();
+            var image = document.getElementById("param1").files;
+            var video = document.getElementById("param2").files;
+
+            if (image.length > 0) {
+                console.log(typeof (image[0]))
+                formData.append("image", image[0])
+                formData.append("location_ids", "231,232,233,261,262,263,264");
+                var url = "api/v3/processing_progress_roamer?location_based=1"
+
+            }
+            if (video.length > 0) {
+                formData.append("video", video[0])
+                formData.append("location_ids", "305,284");
+                formData.append("site_id", 19);
+                var url = "api/v3/processing_progress_roamer?video_upload=1"
+            }
+
+            formData.append("staff_id", 24);
+            formData.append("bg_removal", 0);
+            formData.append("qr_token", 0);
+            formData.append("camera_id", 6);
+            formData.append("recognition_by_face", 0);
+
+            serial += 1;
+
+            // Make AJAX call to the API
+            var live_token = "None"
+            var domain = "https://makeabl.net"
+            $.ajax({
+                url: `${domain}/${url}`,
+                type: 'POST',
+                crossDomain: true,
+                data: formData,
+                processData: false,
+                contentType: false,
+                cache: false,
+                headers: {
+                    'Authorization': `Bearer ${live_token}`
+                },
+                success: function (response) {
+                    // Display the API response
+                    var progressUrl = `${domain}/api/v3/roamer_process_status/${response.result.task_id}`
+                    CeleryProgressBar.initProgressBar(progressUrl, {
+                        onProgress: processProgress,
+                        onSuccess: processResult,
+                        progressBarElement: progressBarElement,
+                        // onError: null
+                        token: live_token
+                    });
+                    var input1 = document.getElementById("param1");
+                    var input2 = document.getElementById("param2");
+                    input1.value = "";
+                    input2.value = "";
+                },
+                error: function (error) {
+                    // Display an error message
+                    document.getElementById('apiResponse').innerHTML = 'Error: ' + error.statusText;
+                }
+            });
+        }
+    </script>
+
+</body>
+
+</html>
